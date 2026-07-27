@@ -29,7 +29,8 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Project Dependencies
-        run: npm install
+        run: npm install --include=optional
+
 
       - name: Build Web Production Assets
         run: npm run build
