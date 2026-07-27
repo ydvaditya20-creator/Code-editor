@@ -1,6 +1,0 @@
-{
-  "name": "Web Code Editor",
-  "description": "An interactive, real-time code editor for HTML, CSS, and JavaScript with a live preview pane, console log output, and customizable templates.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
