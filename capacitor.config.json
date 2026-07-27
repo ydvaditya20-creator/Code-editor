@@ -1,9 +1,0 @@
-{
-  "appId": "com.eocodestudio.editor",
-  "appName": "eo Code Studio",
-  "webDir": "dist",
-  "bundledWebRuntime": false,
-  "server": {
-    "androidScheme": "https"
-  }
-}
