@@ -1,0 +1,78 @@
+name: Build Android APK (GitHub Actions)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    name: Build Android Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js Environment (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 3. Setup Java JDK 17 (Required for Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 4. Setup Android SDK Tools
+        uses: android-actions/setup-android@v3
+
+      - name: 5. Install Dependencies
+        run: npm ci || npm install
+
+      - name: 6. Build Web Production Assets (Vite)
+        run: npm run build
+
+      - name: 7. Initialize Capacitor (If not already initialized)
+        run: |
+          if [ ! -f "capacitor.config.json" ]; then
+            echo "Generating capacitor.config.json..."
+            npx cap init "eo Code Studio" "com.eocodestudio.editor" --web-dir=dist
+          fi
+
+      - name: 8. Add Android Platform
+        run: |
+          if [ ! -d "android" ]; then
+            echo "Adding Android platform to Capacitor..."
+            npx cap add android
+          fi
+
+      - name: 9. Inject Android System Permissions & AndroidManifest Tweaks
+        run: |
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            echo "Injecting Android permissions..."
+            # Ensure permissions are present
+            grep -q "READ_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST_PATH
+            grep -q "WRITE_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST_PATH
+            grep -q "MANAGE_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />' $MANIFEST_PATH
+            grep -q "INTERNET" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST_PATH
+          fi
+
+      - name: 10. Synchronize Web Assets into Android Native Project
+        run: npx cap sync android
+
+      - name: 11. Compile Android Debug APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: 12. Upload Compiled APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eo-code-studio-app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
