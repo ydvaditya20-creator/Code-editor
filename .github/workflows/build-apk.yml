@@ -30,14 +30,16 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: 5. Install Dependencies
-        run: npm ci || npm install
+        run: |
+          npm ci || npm install
+          npm install @capacitor/core @capacitor/cli @capacitor/android --save-dev
 
       - name: 6. Build Web Production Assets (Vite)
         run: npm run build
 
       - name: 7. Initialize Capacitor (If not already initialized)
         run: |
-          if [ ! -f "capacitor.config.json" ]; then
+          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
             echo "Generating capacitor.config.json..."
             npx cap init "eo Code Studio" "com.eocodestudio.editor" --web-dir=dist
           fi
@@ -54,7 +56,6 @@ jobs:
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             echo "Injecting Android permissions..."
-            # Ensure permissions are present
             grep -q "READ_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST_PATH
             grep -q "WRITE_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST_PATH
             grep -q "MANAGE_EXTERNAL_STORAGE" $MANIFEST_PATH || sed -i '/<application/i \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />' $MANIFEST_PATH
@@ -62,7 +63,9 @@ jobs:
           fi
 
       - name: 10. Synchronize Web Assets into Android Native Project
-        run: npx cap sync android
+        run: |
+          npx cap update android
+          npx cap sync android
 
       - name: 11. Compile Android Debug APK with Gradle
         run: |
@@ -73,6 +76,6 @@ jobs:
       - name: 12. Upload Compiled APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eo-code-studio-app-debug.apk
+          name: eo-code-studio-app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
