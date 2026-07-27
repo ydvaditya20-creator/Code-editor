@@ -1,78 +1,46 @@
-name: Build Code Editor Android APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
-  build-apk:
-    name: Build Android Debug APK
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js Environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          
-
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Android SDK Tools
-        uses: android-actions/setup-android@v3
-
-      - name: Install Project Dependencies
-        run: |
-          npm ci --include=optional || npm install --include=optional
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'gradle'
+    - name: Generate Temporary Debug Keystore
+      run: |
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
 
 
-      - name: Build Web Production Assets
-        run: npm run build
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-      - name: Install Capacitor Native Packages
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+    - name: Generate Gradle Wrapper
+      run: gradle wrapper
 
-      - name: Initialize Capacitor App Configuration
-        run: |
-          npx cap init "eo Code Studio" "com.eocodestudio.editor" --web-dir=dist
+    - name: Make Gradlew Executable
+      run: chmod +x gradlew
 
-      - name: Add Android Native Wrapper
-        run: |
-          npx cap add android
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
 
-      - name: Inject Storage & System Access Permissions
-        run: |
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            echo "Injecting Android Read/Write/Manage External Storage permissions..."
-            # Inject permissions before the <application> tag
-            sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />' $MANIFEST_PATH
-          else
-            echo "Error: AndroidManifest.xml not found!"
-            exit 1
-          fi
-
-      - name: Synchronize Web Assets to Native Project
-        run: |
-          npx cap sync android
-
-      - name: Compile Debug APK with Gradle Wrapper
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - name: Upload Output APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: eo-code-studio-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Spell-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
