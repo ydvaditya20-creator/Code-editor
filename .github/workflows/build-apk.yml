@@ -71,6 +71,13 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
+          
+          # build.gradle mein duplicate Kotlin classes ko handle karne ke liye configurations add karna
+          if [ -f "build.gradle" ]; then
+            echo "Fixing Kotlin duplicate classes conflict..."
+            sed -i '/dependencies {/a \    modules {\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk7") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib", "Use newer kotlin-stdlib") }\n        module("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib", "Use newer kotlin-stdlib") }\n    }' build.gradle
+          fi
+          
           ./gradlew assembleDebug --stacktrace
 
       - name: 12. Upload Compiled APK Artifact
